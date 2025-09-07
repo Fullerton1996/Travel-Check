@@ -11,7 +11,11 @@ const App: React.FC = () => {
   const [packingList, setPackingList] = useState<Category[]>(() => {
     try {
       const savedList = localStorage.getItem('packingList');
-      return savedList ? JSON.parse(savedList) : PACKING_LIST;
+      // A simple check to ensure saved list is not empty or malformed
+      if (savedList && savedList !== '[]') {
+        return JSON.parse(savedList);
+      }
+      return PACKING_LIST;
     } catch (error) {
       console.error('Error loading packing list from localStorage', error);
       return PACKING_LIST;
@@ -30,11 +34,27 @@ const App: React.FC = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem('packingList', JSON.stringify(packingList));
+      // The icon components can't be stringified, so we create a version without them for storage.
+      const listToStore = packingList.map(({ icon, ...category }) => category);
+      localStorage.setItem('packingList', JSON.stringify(listToStore));
     } catch (error) {
       console.error('Error saving packing list to localStorage', error);
     }
   }, [packingList]);
+
+  // Re-hydrate the icons on component mount after loading from localStorage
+  useEffect(() => {
+    setPackingList(currentList => {
+      return currentList.map(category => {
+        const originalCategory = PACKING_LIST.find(c => c.id === category.id);
+        return {
+          ...category,
+          icon: originalCategory ? originalCategory.icon : ResetIcon, // Fallback icon
+        };
+      });
+    });
+  }, []);
+
 
   const handleToggle = (itemId: string) => {
     const newCheckedItems = { ...checkedItems, [itemId]: !checkedItems[itemId] };
@@ -53,36 +73,32 @@ const App: React.FC = () => {
     if (!itemName.trim()) return;
 
     const newItem = {
-      id: `custom-${Date.now()}`,
+      id: `custom-${crypto.randomUUID()}`,
       name: itemName.trim(),
     };
 
-    setPackingList(currentList => {
-      const newList = JSON.parse(JSON.stringify(currentList));
-      for (const category of newList) {
-        const subCategory = category.subCategories.find(sub => sub.id === subCategoryId);
-        if (subCategory) {
-          subCategory.items.push(newItem);
-          break;
-        }
-      }
-      return newList;
-    });
+    setPackingList(currentList =>
+      currentList.map(category => ({
+        ...category,
+        subCategories: category.subCategories.map(sub =>
+          sub.id === subCategoryId
+            ? { ...sub, items: [...sub.items, newItem] }
+            : sub
+        ),
+      }))
+    );
   };
 
   const handleRemoveItem = (itemId: string) => {
-    setPackingList(currentList => {
-      const newList = JSON.parse(JSON.stringify(currentList));
-      for (const category of newList) {
-        for (const subCategory of category.subCategories) {
-          const itemIndex = subCategory.items.findIndex(item => item.id === itemId);
-          if (itemIndex > -1) {
-            subCategory.items.splice(itemIndex, 1);
-          }
-        }
-      }
-      return newList;
-    });
+     setPackingList(currentList =>
+      currentList.map(category => ({
+        ...category,
+        subCategories: category.subCategories.map(sub => ({
+          ...sub,
+          items: sub.items.filter(item => item.id !== itemId),
+        })),
+      }))
+    );
 
     if (checkedItems[itemId]) {
       const newCheckedItems = { ...checkedItems };
