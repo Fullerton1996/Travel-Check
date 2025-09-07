@@ -2,14 +2,17 @@
 import React from 'react';
 import type { Category } from '../types';
 import ChecklistItem from './ChecklistItem';
+import AddItemForm from './AddItemForm';
 
 interface CategorySectionProps {
   category: Category;
   checkedItems: Record<string, boolean>;
   onToggle: (itemId: string) => void;
+  onAddItem: (subCategoryId: string, itemName: string) => void;
+  onRemoveItem: (itemId: string) => void;
 }
 
-const CategorySection: React.FC<CategorySectionProps> = ({ category, checkedItems, onToggle }) => {
+const CategorySection: React.FC<CategorySectionProps> = ({ category, checkedItems, onToggle, onAddItem, onRemoveItem }) => {
   const CategoryIcon = category.icon;
   return (
     <section className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-colors duration-300">
@@ -29,9 +32,11 @@ const CategorySection: React.FC<CategorySectionProps> = ({ category, checkedItem
                     item={item}
                     isChecked={!!checkedItems[item.id]}
                     onToggle={() => onToggle(item.id)}
+                    onRemove={onRemoveItem}
                   />
                 ))}
               </ul>
+              <AddItemForm subCategoryId={subCategory.id} onAddItem={onAddItem} />
             </div>
           ))}
         </div>

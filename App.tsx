@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PACKING_LIST } from './constants';
 import type { Category } from './types';
 import CategorySection from './components/CategorySection';
@@ -8,6 +8,16 @@ import Header from './components/Header';
 import { ResetIcon } from './components/icons';
 
 const App: React.FC = () => {
+  const [packingList, setPackingList] = useState<Category[]>(() => {
+    try {
+      const savedList = localStorage.getItem('packingList');
+      return savedList ? JSON.parse(savedList) : PACKING_LIST;
+    } catch (error) {
+      console.error('Error loading packing list from localStorage', error);
+      return PACKING_LIST;
+    }
+  });
+
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem('checkedItems');
@@ -18,6 +28,14 @@ const App: React.FC = () => {
     }
   });
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('packingList', JSON.stringify(packingList));
+    } catch (error) {
+      console.error('Error saving packing list to localStorage', error);
+    }
+  }, [packingList]);
+
   const handleToggle = (itemId: string) => {
     const newCheckedItems = { ...checkedItems, [itemId]: !checkedItems[itemId] };
     setCheckedItems(newCheckedItems);
@@ -27,16 +45,62 @@ const App: React.FC = () => {
   const handleReset = () => {
     setCheckedItems({});
     localStorage.removeItem('checkedItems');
+    setPackingList(PACKING_LIST);
+    localStorage.removeItem('packingList');
   };
+
+  const handleAddItem = (subCategoryId: string, itemName: string) => {
+    if (!itemName.trim()) return;
+
+    const newItem = {
+      id: `custom-${Date.now()}`,
+      name: itemName.trim(),
+    };
+
+    setPackingList(currentList => {
+      const newList = JSON.parse(JSON.stringify(currentList));
+      for (const category of newList) {
+        const subCategory = category.subCategories.find(sub => sub.id === subCategoryId);
+        if (subCategory) {
+          subCategory.items.push(newItem);
+          break;
+        }
+      }
+      return newList;
+    });
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setPackingList(currentList => {
+      const newList = JSON.parse(JSON.stringify(currentList));
+      for (const category of newList) {
+        for (const subCategory of category.subCategories) {
+          const itemIndex = subCategory.items.findIndex(item => item.id === itemId);
+          if (itemIndex > -1) {
+            subCategory.items.splice(itemIndex, 1);
+          }
+        }
+      }
+      return newList;
+    });
+
+    if (checkedItems[itemId]) {
+      const newCheckedItems = { ...checkedItems };
+      delete newCheckedItems[itemId];
+      setCheckedItems(newCheckedItems);
+      localStorage.setItem('checkedItems', JSON.stringify(newCheckedItems));
+    }
+  };
+
 
   const { totalItems, checkedCount } = useMemo(() => {
     let total = 0;
-    PACKING_LIST.forEach(category => 
+    packingList.forEach(category => 
       category.subCategories.forEach(sub => total += sub.items.length)
     );
     const checked = Object.values(checkedItems).filter(Boolean).length;
     return { totalItems: total, checkedCount: checked };
-  }, [checkedItems]);
+  }, [checkedItems, packingList]);
   
   const progress = totalItems > 0 ? (checkedCount / totalItems) * 100 : 0;
 
@@ -53,7 +117,7 @@ const App: React.FC = () => {
               className="flex items-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors"
             >
               <ResetIcon className="w-4 h-4 mr-1" />
-              Reset
+              Reset All
             </button>
           </div>
           <ProgressBar progress={progress} />
@@ -61,12 +125,14 @@ const App: React.FC = () => {
         </div>
 
         <main className="space-y-8">
-          {PACKING_LIST.map((category: Category) => (
+          {packingList.map((category: Category) => (
             <CategorySection
               key={category.id}
               category={category}
               checkedItems={checkedItems}
               onToggle={handleToggle}
+              onAddItem={handleAddItem}
+              onRemoveItem={handleRemoveItem}
             />
           ))}
         </main>

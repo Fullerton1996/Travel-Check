@@ -1,17 +1,19 @@
 
 import React from 'react';
 import type { ChecklistItem as ChecklistItemType } from '../types';
+import { TrashIcon } from './icons';
 
 interface ChecklistItemProps {
   item: ChecklistItemType;
   isChecked: boolean;
   onToggle: () => void;
+  onRemove: (itemId: string) => void;
 }
 
-const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, isChecked, onToggle }) => {
+const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, isChecked, onToggle, onRemove }) => {
   return (
-    <li className="flex items-start">
-      <label className="flex items-start cursor-pointer group">
+    <li className="flex items-start justify-between group">
+      <label className="flex items-start cursor-pointer flex-grow pr-2">
         <div className="flex items-center h-6">
           <input
             type="checkbox"
@@ -43,6 +45,13 @@ const ChecklistItem: React.FC<ChecklistItemProps> = ({ item, isChecked, onToggle
           )}
         </div>
       </label>
+      <button
+        onClick={() => onRemove(item.id)}
+        className="flex-shrink-0 p-1 rounded-full text-gray-400 dark:text-gray-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+        aria-label={`Remove ${item.name}`}
+      >
+        <TrashIcon className="w-4 h-4" />
+      </button>
     </li>
   );
 };
